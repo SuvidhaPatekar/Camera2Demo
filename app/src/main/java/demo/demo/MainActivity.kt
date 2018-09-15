@@ -32,6 +32,8 @@ class MainActivity : AppCompatActivity() {
           arrayOf(Manifest.permission.CAMERA, Manifest.permission.WRITE_EXTERNAL_STORAGE),
           PERMISSIONS_REQUEST_CODE
       )
+    } else {
+      replaceFragment()
     }
   }
 
@@ -44,15 +46,8 @@ class MainActivity : AppCompatActivity() {
     when (requestCode) {
       PERMISSIONS_REQUEST_CODE -> {
         if ((grantResults.isNotEmpty())) {
-          if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-
-          } else {
-            showToast(R.string.need_permission)
-            getPermission()
-          }
-
-          if (grantResults[1] == PackageManager.PERMISSION_GRANTED) {
-
+          if (grantResults[0] == PackageManager.PERMISSION_GRANTED && grantResults[1] == PackageManager.PERMISSION_GRANTED) {
+            replaceFragment()
           } else {
             showToast(R.string.need_permission)
             getPermission()
@@ -65,9 +60,15 @@ class MainActivity : AppCompatActivity() {
     }
   }
 
+  private fun replaceFragment() {
+    val fragmentTransaction = supportFragmentManager.beginTransaction()
+    fragmentTransaction.replace(R.id.container, CameraFragment.newInstance())
+    fragmentTransaction.commit()
+  }
+
   private fun showToast(message: Int) {
     val toast = Toast.makeText(
-        this, message, Toast.LENGTH_LONG
+        this, message, Toast.LENGTH_SHORT
     )
     toast.show()
   }
