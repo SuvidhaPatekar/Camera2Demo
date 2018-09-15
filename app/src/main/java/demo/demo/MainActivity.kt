@@ -11,36 +11,84 @@ import android.hardware.camera2.CameraCaptureSession.CaptureCallback
 import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraDevice
 import android.hardware.camera2.CameraManager
-import android.hardware.camera2.CaptureRequest
-import android.hardware.camera2.TotalCaptureResult
 import android.hardware.camera2.params.StreamConfigurationMap
 import android.media.ImageReader
 import android.os.Bundle
+import android.os.Environment
 import android.support.v4.app.ActivityCompat
 import android.support.v4.content.ContextCompat
 import android.support.v7.app.AppCompatActivity
-import android.util.Log
 import android.view.Surface
 import android.view.TextureView.SurfaceTextureListener
 import android.widget.Toast
 import kotlinx.android.synthetic.main.activity_main.toolbar
+import kotlinx.android.synthetic.main.content_main.btnTakePhoto
 import kotlinx.android.synthetic.main.content_main.txvCamera
+import java.io.File
+import java.io.FileOutputStream
+import java.io.IOException
 import java.util.Arrays
 
 class MainActivity : AppCompatActivity() {
   private val PERMISSIONS_REQUEST_CODE = 200
-  private lateinit var mPreviewSurfaceTexture: SurfaceTexture
-  private lateinit var mCamera: CameraDevice
-  private lateinit var mSession: CameraCaptureSession
+  private var cameraDevice: CameraDevice? = null
+  private lateinit var session: CameraCaptureSession
   private var previewSurface: Surface? = null
   private var jpegCaptureSurface: Surface? = null
-  private var mCaptureResult: TotalCaptureResult? = null
+
+  private val surfaceTextureListener = object : SurfaceTextureListener {
+    override fun onSurfaceTextureSizeChanged(
+      surface: SurfaceTexture?,
+      width: Int,
+      height: Int
+    ) {
+    }
+
+    override fun onSurfaceTextureUpdated(surface: SurfaceTexture?) {
+    }
+
+    override fun onSurfaceTextureDestroyed(surface: SurfaceTexture?): Boolean {
+      return false
+    }
+
+    override fun onSurfaceTextureAvailable(
+      surface: SurfaceTexture,
+      width: Int,
+      height: Int
+    ) {
+      setUpCamera()
+    }
+  }
+
+  private val cameraStateCallback = object : CameraDevice.StateCallback() {
+    override fun onDisconnected(camera: CameraDevice) {
+      camera.close()
+      cameraDevice = null
+    }
+
+    override fun onError(
+      camera: CameraDevice,
+      error: Int
+    ) {
+      camera.close()
+      cameraDevice = null
+    }
+
+    override fun onOpened(camera: CameraDevice) {
+      cameraDevice = camera
+      captureSurface()
+    }
+  }
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
     setContentView(R.layout.activity_main)
     setSupportActionBar(toolbar)
     getPermission()
+
+    btnTakePhoto.setOnClickListener {
+      capture()
+    }
   }
 
   private fun getPermission() {
@@ -85,30 +133,7 @@ class MainActivity : AppCompatActivity() {
   }
 
   private fun startCamera() {
-    txvCamera.surfaceTextureListener = object : SurfaceTextureListener {
-      override fun onSurfaceTextureSizeChanged(
-        surface: SurfaceTexture?,
-        width: Int,
-        height: Int
-      ) {
-      }
-
-      override fun onSurfaceTextureUpdated(surface: SurfaceTexture?) {
-      }
-
-      override fun onSurfaceTextureDestroyed(surface: SurfaceTexture?): Boolean {
-        return false
-      }
-
-      override fun onSurfaceTextureAvailable(
-        surface: SurfaceTexture,
-        width: Int,
-        height: Int
-      ) {
-        mPreviewSurfaceTexture = surface
-        setUpCamera()
-      }
-    }
+    txvCamera.surfaceTextureListener = surfaceTextureListener
   }
 
   @SuppressLint("MissingPermission")
@@ -125,43 +150,55 @@ class MainActivity : AppCompatActivity() {
 
     jpegImageReader.setOnImageAvailableListener(
         {
-          it.acquireLatestImage()
+          val byteBuffer = it.acquireLatestImage().planes[0].buffer
+          val bytes = ByteArray(byteBuffer.remaining())
+          byteBuffer.get(bytes)
+          var fileOutputStream: FileOutputStream? = null
+          try {
+            val root = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)
+                .toString();
+            val mkDir = File(root + "/DEMO");
+
+            if (!mkDir.exists()) {
+              mkDir.mkdirs();
+            }
+
+            val iname = "Image-" + System.currentTimeMillis() + ".jpg";
+            val file = File(mkDir, iname);
+
+            fileOutputStream = FileOutputStream(file)
+            fileOutputStream.write(bytes)
+          } catch (e: IOException) {
+            e.printStackTrace()
+          } finally {
+            if (fileOutputStream != null) {
+              try {
+                fileOutputStream.close()
+              } catch (e: IOException) {
+                e.printStackTrace()
+              }
+            }
+          }
+
         },
         null
     )
-    previewSurface = Surface(mPreviewSurfaceTexture)
+    previewSurface = Surface(txvCamera.surfaceTexture)
     jpegCaptureSurface = jpegImageReader.surface
 
-    cameraManager.openCamera(cameraId, object : CameraDevice.StateCallback() {
-      override fun onDisconnected(camera: CameraDevice?) {
-
-      }
-
-      override fun onError(
-        camera: CameraDevice?,
-        error: Int
-      ) {
-      }
-
-      override fun onOpened(camera: CameraDevice) {
-        mCamera = camera
-
-        val surfaces = Arrays.asList(previewSurface!!, jpegCaptureSurface!!)
-        captureSurface(surfaces)
-      }
-
-    }, null)
-
+    cameraManager.openCamera(cameraId, cameraStateCallback, null)
   }
 
-  fun captureSurface(surfaces: List<Surface>) {
-    mCamera.createCaptureSession(surfaces, object : CameraCaptureSession.StateCallback() {
+  fun captureSurface() {
+    val surfaces = Arrays.asList(previewSurface!!, jpegCaptureSurface!!)
+    cameraDevice?.createCaptureSession(surfaces, object : CameraCaptureSession.StateCallback() {
       override fun onConfigureFailed(session: CameraCaptureSession?) {
 
       }
 
       override fun onConfigured(session: CameraCaptureSession) {
-        mSession = session
+        if (cameraDevice == null) return
+        this@MainActivity.session = session
         startSession()
       }
     }, null)
@@ -169,39 +206,25 @@ class MainActivity : AppCompatActivity() {
   }
 
   fun startSession() {
-    val request = mCamera.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW)
-    request.addTarget(previewSurface)
+    cameraDevice?.let {
+      val request = it.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW)
+      request.addTarget(previewSurface)
+      session.setRepeatingRequest(request.build(), object : CaptureCallback() {}, null)
+    }
+  }
 
-    mSession.setRepeatingRequest(request.build(), object : CaptureCallback() {
-      override fun onCaptureCompleted(
-        session: CameraCaptureSession,
-        request: CaptureRequest,
-        result: TotalCaptureResult
-      ) {
-        mCaptureResult = result
-      }
-    }, null)
+  private fun capture() {
+    val requestCapture = cameraDevice?.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW)
+    requestCapture?.addTarget(jpegCaptureSurface)
 
-    val requestCaputre = mCamera.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW)
-    requestCaputre.addTarget(jpegCaptureSurface)
-
-    mSession.capture(requestCaputre.build(), object : CaptureCallback() {
-      override fun onCaptureCompleted(
-        session: CameraCaptureSession,
-        request: CaptureRequest,
-        result: TotalCaptureResult
-      ) {
-        mCaptureResult = result
-        Log.i("mCaptureResult", mCaptureResult.toString())
-      }
-    }, null)
+    session.capture(requestCapture?.build(), object : CaptureCallback() {}, null)
   }
 
   private fun showToast(message: Int) {
-    val toast = Toast.makeText(
+    Toast.makeText(
         this, message, Toast.LENGTH_SHORT
     )
-    toast.show()
+        .show()
   }
 }
 

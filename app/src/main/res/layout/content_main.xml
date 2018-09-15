@@ -14,11 +14,12 @@
       />
 
   <Button
+      android:id="@+id/btnTakePhoto"
       android:layout_width="wrap_content"
       android:layout_height="wrap_content"
       android:background="@color/colorPrimary"
       android:padding="8dp"
-      android:text="Take photo"
+      android:text="@string/take_photo"
       android:textAllCaps="true"
       android:textColor="@color/colorAccent"
       app:layout_constraintBottom_toBottomOf="parent"
