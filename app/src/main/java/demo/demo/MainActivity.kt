@@ -14,7 +14,6 @@ import android.hardware.camera2.CameraDevice
 import android.hardware.camera2.CameraManager
 import android.hardware.camera2.CameraMetadata
 import android.hardware.camera2.CaptureRequest
-import android.hardware.camera2.TotalCaptureResult
 import android.hardware.camera2.params.StreamConfigurationMap
 import android.media.ImageReader
 import android.os.Bundle
@@ -22,6 +21,7 @@ import android.os.Environment
 import android.support.v4.app.ActivityCompat
 import android.support.v4.content.ContextCompat
 import android.support.v7.app.AppCompatActivity
+import android.util.Log
 import android.util.Size
 import android.view.Surface
 import android.view.TextureView.SurfaceTextureListener
@@ -31,8 +31,7 @@ import kotlinx.android.synthetic.main.content_main.btnFlash
 import kotlinx.android.synthetic.main.content_main.btnTakePhoto
 import kotlinx.android.synthetic.main.content_main.txvCamera
 import java.io.File
-import java.io.FileOutputStream
-import java.io.IOException
+import java.nio.ByteBuffer
 import java.util.Arrays
 
 class MainActivity : AppCompatActivity() {
@@ -41,6 +40,7 @@ class MainActivity : AppCompatActivity() {
   private var session: CameraCaptureSession? = null
   private var previewSurface: Surface? = null
   private var jpegCaptureSurface: Surface? = null
+  private var previewCaptureSurface: Surface? = null
   private lateinit var cameraId: String
   lateinit var cameraCharacteristics: CameraCharacteristics
   private var isFront: Boolean = false
@@ -74,6 +74,7 @@ class MainActivity : AppCompatActivity() {
       height: Int
     ) {
       setUpCamera()
+      openCamera()
     }
   }
 
@@ -177,7 +178,8 @@ class MainActivity : AppCompatActivity() {
   }
 
   private fun setUpCamera() {
-    cameraManager = this.getSystemService(Context.CAMERA_SERVICE) as CameraManager
+    cameraManager = getSystemService(Context.CAMERA_SERVICE) as CameraManager
+
     for (id in cameraManager.cameraIdList) {
       cameraCharacteristics = cameraManager.getCameraCharacteristics(id)
       val cOrientation = cameraCharacteristics.get(CameraCharacteristics.LENS_FACING)
@@ -198,66 +200,72 @@ class MainActivity : AppCompatActivity() {
         }
       }
     }
-    openCamera()
   }
 
   @SuppressLint("MissingPermission")
   private fun openCamera() {
     val jpegImageReader: ImageReader
+    val previewImageReader: ImageReader
 
     if (isFront) {
       jpegImageReader =
+          ImageReader.newInstance(frontSize.width, frontSize.height, ImageFormat.JPEG, 50)
+      previewImageReader =
           ImageReader.newInstance(frontSize.width, frontSize.height, ImageFormat.JPEG, 50)
       cameraManager.openCamera(frontCameraId, cameraStateCallback, null)
     } else {
       jpegImageReader =
           ImageReader.newInstance(backSize.width, backSize.height, ImageFormat.JPEG, 50)
+      previewImageReader =
+          ImageReader.newInstance(frontSize.width, frontSize.height, ImageFormat.JPEG, 50)
       cameraManager.openCamera(backCameraId, cameraStateCallback, null)
     }
+
+    previewImageReader.setOnImageAvailableListener({
+      Log.i("MainActivity", "previewImageReader on image available")
+      it.surface.release()
+    }, null)
 
     jpegImageReader.setOnImageAvailableListener(
         {
           val byteBuffer = it.acquireLatestImage().planes[0].buffer
-          val bytes = ByteArray(byteBuffer.remaining())
-          byteBuffer.get(bytes)
-          var fileOutputStream: FileOutputStream? = null
-          try {
-            val root = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)
-                .toString()
-            val mkDir = File(root + "/DEMO")
-
-            if (!mkDir.exists()) {
-              mkDir.mkdirs()
-            }
-
-            val imageName = "Image-" + System.currentTimeMillis() + ".jpg"
-            val file = File(mkDir, imageName)
-
-            fileOutputStream = FileOutputStream(file)
-            fileOutputStream.write(bytes)
-          } catch (e: IOException) {
-            e.printStackTrace()
-          } finally {
-            showToast(R.string.save_image)
-            if (fileOutputStream != null) {
-              try {
-                fileOutputStream.close()
-              } catch (e: IOException) {
-                e.printStackTrace()
+          createNewImageFile().outputStream()
+              .use {
+                it.write(getByteArrayFromBuffer(byteBuffer))
+                showToast(R.string.save_image)
+                it.close()
               }
-            }
-          }
-
+          it.close()
         },
         null
     )
 
     previewSurface = Surface(txvCamera.surfaceTexture)
     jpegCaptureSurface = jpegImageReader.surface
+    previewCaptureSurface = previewImageReader.surface
+  }
+
+  private fun createNewImageFile(): File {
+    val root = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)
+        .toString()
+    val mkDir = File("$root/DEMO")
+
+    if (!mkDir.exists()) {
+      mkDir.mkdirs()
+    }
+
+    val imageName = "Image-" + System.currentTimeMillis() + ".jpg"
+    return File(mkDir, imageName)
+  }
+
+  private fun getByteArrayFromBuffer(byteBuffer: ByteBuffer): ByteArray {
+    val bytes = ByteArray(byteBuffer.remaining())
+    byteBuffer.get(bytes)
+    return bytes
   }
 
   fun captureSurface() {
-    val surfaces = Arrays.asList(previewSurface!!, jpegCaptureSurface!!)
+    val surfaces = Arrays.asList(previewSurface!!, jpegCaptureSurface!!, previewCaptureSurface)
     cameraDevice?.createCaptureSession(surfaces, object : CameraCaptureSession.StateCallback() {
       override fun onConfigureFailed(session: CameraCaptureSession?) {
 
@@ -273,25 +281,29 @@ class MainActivity : AppCompatActivity() {
   }
 
   fun startSession() {
-    cameraDevice?.let {
-      val request = it.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW)
-      request.addTarget(previewSurface)
-      session?.setRepeatingRequest(request.build(), object : CaptureCallback() {
-        override fun onCaptureCompleted(
-          session: CameraCaptureSession?,
-          request: CaptureRequest?,
-          result: TotalCaptureResult?
-        ) {
-        }
-      }, null)
+    try {
+      cameraDevice?.let {
+        val request = it.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW)
+        request.addTarget(previewSurface)
+        //request.addTarget(previewCaptureSurface)
+        session?.setRepeatingRequest(request.build(), object : CaptureCallback() {
+        }, null)
+      }
+    } catch (e: Exception) {
+      e.printStackTrace()
     }
   }
 
   private fun capture() {
-    requestCapture = cameraDevice?.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW)
-    requestCapture?.addTarget(jpegCaptureSurface)
-    checkFlashAvailable()
-    session?.capture(requestCapture?.build(), object : CaptureCallback() {}, null)
+    try {
+      requestCapture = cameraDevice?.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW)
+      requestCapture?.addTarget(jpegCaptureSurface)
+      checkFlashAvailable()
+      session?.capture(requestCapture?.build(), object : CaptureCallback() {}, null)
+    } catch (e: Exception) {
+
+    }
+
   }
 
   private fun checkFlashAvailable() {
@@ -316,16 +328,12 @@ class MainActivity : AppCompatActivity() {
 
   private fun closeOperations() {
     try {
-      if (null != cameraDevice) {
-        cameraDevice!!.close()
-        cameraDevice == null
-      }
-
-      if (session != null) {
-        session!!.close()
-        session = null
-      }
+      cameraDevice?.close()
+      cameraDevice = null
+      session?.close()
+      session = null
     } catch (e: CameraAccessException) {
+      e.printStackTrace()
     }
   }
 
