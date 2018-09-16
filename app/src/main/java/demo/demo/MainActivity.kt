@@ -12,6 +12,7 @@ import android.hardware.camera2.CameraCaptureSession.CaptureCallback
 import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraDevice
 import android.hardware.camera2.CameraManager
+import android.hardware.camera2.CameraMetadata
 import android.hardware.camera2.CaptureRequest
 import android.hardware.camera2.TotalCaptureResult
 import android.hardware.camera2.params.StreamConfigurationMap
@@ -26,6 +27,7 @@ import android.view.Surface
 import android.view.TextureView.SurfaceTextureListener
 import android.widget.Toast
 import kotlinx.android.synthetic.main.content_main.btnChangeCamera
+import kotlinx.android.synthetic.main.content_main.btnFlash
 import kotlinx.android.synthetic.main.content_main.btnTakePhoto
 import kotlinx.android.synthetic.main.content_main.txvCamera
 import java.io.File
@@ -44,6 +46,10 @@ class MainActivity : AppCompatActivity() {
   private var isFront: Boolean = false
   lateinit var frontCameraId: String
   lateinit var backCameraId: String
+  var isFlashOn = false
+  var isFLashAvailableFront = false
+  var isFlashAvailableBack = false
+  var requestCapture: CaptureRequest.Builder? = null
   private lateinit var cameraManager: CameraManager
   private lateinit var frontSize: Size
   private lateinit var backSize: Size
@@ -103,6 +109,15 @@ class MainActivity : AppCompatActivity() {
       isFront = !isFront
       closeOperations()
       openCamera()
+    }
+
+    btnFlash.setOnClickListener {
+      if (isFlashOn) {
+        btnFlash.setImageResource(R.drawable.ic_flash_off_black_24dp)
+      } else {
+        btnFlash.setImageResource(R.drawable.ic_flash_on_black_24dp)
+      }
+      isFlashOn = !isFlashOn
     }
   }
 
@@ -166,14 +181,21 @@ class MainActivity : AppCompatActivity() {
     for (id in cameraManager.cameraIdList) {
       cameraCharacteristics = cameraManager.getCameraCharacteristics(id)
       val cOrientation = cameraCharacteristics.get(CameraCharacteristics.LENS_FACING)
+      val isFlashAvailable = cameraCharacteristics.get(CameraCharacteristics.FLASH_INFO_AVAILABLE)
       val streamConfigs: StreamConfigurationMap =
         cameraCharacteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)
       if (cOrientation == CameraCharacteristics.LENS_FACING_BACK) {
         backCameraId = id
         backSize = streamConfigs.getOutputSizes(ImageFormat.JPEG)[0]
+        if (isFlashAvailable) {
+          isFlashAvailableBack = true
+        }
       } else if (cOrientation == CameraCharacteristics.LENS_FACING_FRONT) {
         frontCameraId = id
         frontSize = streamConfigs.getOutputSizes(ImageFormat.JPEG)[0]
+        if (isFlashAvailable) {
+          isFLashAvailableFront = true
+        }
       }
     }
     openCamera()
@@ -217,7 +239,6 @@ class MainActivity : AppCompatActivity() {
             e.printStackTrace()
           } finally {
             showToast(R.string.save_image)
-            startSession()
             if (fileOutputStream != null) {
               try {
                 fileOutputStream.close()
@@ -267,10 +288,30 @@ class MainActivity : AppCompatActivity() {
   }
 
   private fun capture() {
-    val requestCapture = cameraDevice?.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW)
+    requestCapture = cameraDevice?.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW)
     requestCapture?.addTarget(jpegCaptureSurface)
-
+    checkFlashAvailable()
     session?.capture(requestCapture?.build(), object : CaptureCallback() {}, null)
+  }
+
+  private fun checkFlashAvailable() {
+    if (isFront && isFLashAvailableFront) {
+      setFlash()
+    } else if (!isFront && isFlashAvailableBack) {
+      setFlash()
+    }
+  }
+
+  private fun setFlash() {
+    if (isFlashOn) {
+      requestCapture?.set(CaptureRequest.FLASH_MODE, CameraMetadata.FLASH_MODE_TORCH)
+    } else {
+      requestCapture?.set(CaptureRequest.FLASH_MODE, CameraMetadata.FLASH_MODE_OFF)
+    }
+  }
+
+  private fun flashOn() {
+
   }
 
   private fun closeOperations() {
