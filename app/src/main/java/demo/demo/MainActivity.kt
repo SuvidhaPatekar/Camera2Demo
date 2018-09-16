@@ -326,7 +326,6 @@ class MainActivity : AppCompatActivity() {
         session = null
       }
     } catch (e: CameraAccessException) {
-
     }
   }
 
