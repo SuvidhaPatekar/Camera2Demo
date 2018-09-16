@@ -7,4 +7,5 @@
   <string name="need_permission">Permission Denied. Need permission to access the functionality</string>
   <string name="open_camera">open camera</string>
   <string name="take_photo">Take photo</string>
+  <string name="save_image">Image saved in gallery</string>
 </resources>
