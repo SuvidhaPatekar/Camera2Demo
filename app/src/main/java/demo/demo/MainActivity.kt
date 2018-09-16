@@ -12,6 +12,8 @@ import android.hardware.camera2.CameraCaptureSession.CaptureCallback
 import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraDevice
 import android.hardware.camera2.CameraManager
+import android.hardware.camera2.CaptureRequest
+import android.hardware.camera2.TotalCaptureResult
 import android.hardware.camera2.params.StreamConfigurationMap
 import android.media.ImageReader
 import android.os.Bundle
@@ -180,13 +182,14 @@ class MainActivity : AppCompatActivity() {
   @SuppressLint("MissingPermission")
   private fun openCamera() {
     val jpegImageReader: ImageReader
+
     if (isFront) {
       jpegImageReader =
-          ImageReader.newInstance(frontSize.width, frontSize.height, ImageFormat.JPEG, 1)
+          ImageReader.newInstance(frontSize.width, frontSize.height, ImageFormat.JPEG, 50)
       cameraManager.openCamera(frontCameraId, cameraStateCallback, null)
     } else {
       jpegImageReader =
-          ImageReader.newInstance(backSize.width, backSize.height, ImageFormat.JPEG, 1)
+          ImageReader.newInstance(backSize.width, backSize.height, ImageFormat.JPEG, 50)
       cameraManager.openCamera(backCameraId, cameraStateCallback, null)
     }
 
@@ -198,15 +201,15 @@ class MainActivity : AppCompatActivity() {
           var fileOutputStream: FileOutputStream? = null
           try {
             val root = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)
-                .toString();
-            val mkDir = File(root + "/DEMO");
+                .toString()
+            val mkDir = File(root + "/DEMO")
 
             if (!mkDir.exists()) {
-              mkDir.mkdirs();
+              mkDir.mkdirs()
             }
 
-            val imageName = "Image-" + System.currentTimeMillis() + ".jpg";
-            val file = File(mkDir, imageName);
+            val imageName = "Image-" + System.currentTimeMillis() + ".jpg"
+            val file = File(mkDir, imageName)
 
             fileOutputStream = FileOutputStream(file)
             fileOutputStream.write(bytes)
@@ -227,6 +230,7 @@ class MainActivity : AppCompatActivity() {
         },
         null
     )
+
     previewSurface = Surface(txvCamera.surfaceTexture)
     jpegCaptureSurface = jpegImageReader.surface
   }
@@ -251,7 +255,14 @@ class MainActivity : AppCompatActivity() {
     cameraDevice?.let {
       val request = it.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW)
       request.addTarget(previewSurface)
-      session?.setRepeatingRequest(request.build(), object : CaptureCallback() {}, null)
+      session?.setRepeatingRequest(request.build(), object : CaptureCallback() {
+        override fun onCaptureCompleted(
+          session: CameraCaptureSession?,
+          request: CaptureRequest?,
+          result: TotalCaptureResult?
+        ) {
+        }
+      }, null)
     }
   }
 

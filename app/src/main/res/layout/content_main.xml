@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <android.support.constraint.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     >
@@ -20,34 +21,39 @@
       android:layout_width="64dp"
       android:layout_height="64dp"
       android:layout_marginBottom="16dp"
+      android:background="@drawable/circular_background"
+      android:scaleType="fitXY"
+      android:src="@drawable/ic_camera_black_24dp"
       app:layout_constraintBottom_toBottomOf="parent"
       app:layout_constraintLeft_toLeftOf="parent"
       app:layout_constraintRight_toRightOf="parent"
-      android:src="@drawable/ic_launcher_background"
+      android:contentDescription="@string/click_pictures"
       />
 
-  <Button
+  <ImageButton
       android:id="@+id/btnChangeCamera"
       android:layout_width="64dp"
       android:layout_height="64dp"
       android:layout_margin="16dp"
-      android:background="@color/colorPrimary"
-      android:textAllCaps="true"
-      android:textColor="@color/colorAccent"
+      android:background="@drawable/circular_background"
+      android:scaleType="fitXY"
+      android:src="@drawable/ic_switch_camera_black_24dp"
       app:layout_constraintBottom_toBottomOf="parent"
       app:layout_constraintLeft_toLeftOf="parent"
+      android:contentDescription="@string/change_cameras_setting"
       />
 
-  <Button
+  <ImageButton
       android:id="@+id/btnFlash"
       android:layout_width="64dp"
       android:layout_height="64dp"
       android:layout_margin="16dp"
-      android:background="@color/colorPrimary"
-      android:textAllCaps="true"
-      android:textColor="@color/colorAccent"
+      android:background="@drawable/circular_background"
+      android:scaleType="fitXY"
+      android:src="@drawable/ic_flash_on_black_24dp"
       app:layout_constraintBottom_toBottomOf="parent"
       app:layout_constraintRight_toRightOf="parent"
+      android:contentDescription="@string/change_flash_setting"
       />
   />
 </android.support.constraint.ConstraintLayout>
