@@ -314,8 +314,7 @@ class MainActivity : AppCompatActivity() {
             if (frames % 30 == 0) {
               val currentTime = SystemClock.elapsedRealtimeNanos()
               val fps = Math.round(frames * 1e9 / (currentTime - initialTime))
-              //setFps(String.format(getString(R.string.fps), fps))
-              showToast(messageString = "fps $fps", message = null)
+              setFps(String.format(getString(R.string.fps), fps))
               frames = 0
             }
 
@@ -331,7 +330,7 @@ class MainActivity : AppCompatActivity() {
   }
 
   fun setFps(fps: String) {
-    tvFps.text = fps
+    tvFps.post { tvFps.text = fps }
   }
 
   private fun capture() {
