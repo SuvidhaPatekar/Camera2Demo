@@ -24,7 +24,6 @@ import android.os.SystemClock
 import android.support.v4.app.ActivityCompat
 import android.support.v4.content.ContextCompat
 import android.support.v7.app.AppCompatActivity
-import android.util.Log
 import android.util.Size
 import android.view.Surface
 import android.view.TextureView.SurfaceTextureListener
@@ -37,26 +36,34 @@ import kotlinx.android.synthetic.main.content_main.txvCamera
 import java.util.Arrays
 
 class MainActivity : AppCompatActivity() {
+
   private val PERMISSIONS_REQUEST_CODE = 200
+
   private var cameraDevice: CameraDevice? = null
   private var cameraCaptureSession: CameraCaptureSession? = null
+
   private var previewSurface: Surface? = null
   private var jpegCaptureSurface: Surface? = null
-  private var previewCaptureSurface: Surface? = null
-  private lateinit var cameraId: String
-  lateinit var cameraCharacteristics: CameraCharacteristics
+  private lateinit var cameraCharacteristics: CameraCharacteristics
+
   private var isFront: Boolean = false
-  lateinit var frontCameraId: String
-  lateinit var backCameraId: String
-  var isFlashOn = false
-  var isFLashAvailableFront = false
-  var isFlashAvailableBack = false
-  var requestCapture: CaptureRequest.Builder? = null
+
+  private lateinit var frontCameraId: String
+  private lateinit var backCameraId: String
+
+  private var isFlashOn = false
+  private var isFLashAvailableFront = false
+  private var isFlashAvailableBack = false
+  private var requestCapture: CaptureRequest.Builder? = null
+
   private lateinit var cameraManager: CameraManager
+
   private lateinit var frontSize: Size
   private lateinit var backSize: Size
-  var handler: Handler? = null
-  var handlerThread: HandlerThread? = null
+
+  private var handler: Handler? = null
+  private var handlerThread: HandlerThread? = null
+
   private val surfaceTextureListener = object : SurfaceTextureListener {
     override fun onSurfaceTextureSizeChanged(
       surface: SurfaceTexture?,
@@ -215,28 +222,19 @@ class MainActivity : AppCompatActivity() {
   @SuppressLint("MissingPermission")
   private fun openCamera() {
     val jpegImageReader: ImageReader
-    val previewImageReader: ImageReader
 
     if (isFront) {
       jpegImageReader =
           ImageReader.newInstance(frontSize.width, frontSize.height, ImageFormat.JPEG, 50)
-      previewImageReader =
-          ImageReader.newInstance(100, 100, ImageFormat.JPEG, 50)
 //      txvCamera.surfaceTexture.setDefaultBufferSize(frontSize.width, frontSize.height)
 
       cameraManager.openCamera(frontCameraId, cameraStateCallback, null)
     } else {
       jpegImageReader =
           ImageReader.newInstance(backSize.width, backSize.height, ImageFormat.JPEG, 50)
-      previewImageReader =
-          ImageReader.newInstance(100, 100, ImageFormat.JPEG, 50)
 //      txvCamera.surfaceTexture.setDefaultBufferSize(frontSize.width, frontSize.height)
       cameraManager.openCamera(backCameraId, cameraStateCallback, null)
     }
-
-    previewImageReader.setOnImageAvailableListener({
-      Log.i("MainActivity", "previewImageReader on image available")
-    }, handler)
 
     jpegImageReader.setOnImageAvailableListener(
         {
@@ -258,7 +256,6 @@ class MainActivity : AppCompatActivity() {
 
     previewSurface = Surface(txvCamera.surfaceTexture)
     jpegCaptureSurface = jpegImageReader.surface
-    previewCaptureSurface = previewImageReader.surface
   }
 
   fun captureSurface() {
@@ -284,7 +281,6 @@ class MainActivity : AppCompatActivity() {
 
         var frames = 0
         var totalFrames = 0
-        val initialTime: Long = SystemClock.elapsedRealtimeNanos()
         var lastCalculatedTime = SystemClock.elapsedRealtimeNanos()
 
         cameraCaptureSession?.setRepeatingRequest(request.build(), object : CaptureCallback() {
