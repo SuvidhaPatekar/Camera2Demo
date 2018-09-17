@@ -11,4 +11,5 @@
   <string name="change_flash_setting">change flash setting</string>
   <string name="change_cameras_setting">change cameras setting</string>
   <string name="click_pictures">click pictures</string>
+  <string name="fps">FPS - %d</string>
 </resources>
