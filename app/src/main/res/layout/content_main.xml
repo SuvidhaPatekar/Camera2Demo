@@ -60,10 +60,12 @@
       android:id="@+id/tvFps"
       android:layout_width="wrap_content"
       android:layout_height="wrap_content"
+      android:layout_marginTop="32dp"
+      android:background="@drawable/circular_backgound_with_border"
+      android:padding="4dp"
       app:layout_constraintLeft_toLeftOf="parent"
       app:layout_constraintRight_toRightOf="parent"
       app:layout_constraintTop_toTopOf="parent"
       tools:text="@string/app_name"
-      android:textColor="@color/colorAccent"
       />
 </android.support.constraint.ConstraintLayout>

@@ -1,7 +1,6 @@
 package demo.demo
 
 import android.os.Environment
-import android.view.TextureView
 import java.io.File
 import java.nio.ByteBuffer
 
@@ -18,8 +17,8 @@ fun createNewImageFile(): File {
   return File(mkDir, imageName)
 }
 
-fun getByteArrayFromBuffer(byteBuffer: ByteBuffer): ByteArray {
-  val bytes = ByteArray(byteBuffer.remaining())
-  byteBuffer.get(bytes)
+fun ByteBuffer.getByteArrayFromBuffer(): ByteArray {
+  val bytes = ByteArray(remaining())
+  get(bytes)
   return bytes
 }

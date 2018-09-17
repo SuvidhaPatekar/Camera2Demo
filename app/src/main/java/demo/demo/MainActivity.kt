@@ -244,7 +244,7 @@ class MainActivity : AppCompatActivity() {
           val file = createNewImageFile()
           file.outputStream()
               .use {
-                it.write(getByteArrayFromBuffer(byteBuffer))
+                it.write(byteBuffer.getByteArrayFromBuffer())
                 showToast(
                     message = null,
                     messageString = String.format(
@@ -285,7 +285,7 @@ class MainActivity : AppCompatActivity() {
         var frames = 0
         var totalFrames = 0
         val initialTime: Long = SystemClock.elapsedRealtimeNanos()
-        var prevTime = SystemClock.elapsedRealtimeNanos()
+        var lastCalculatedTime = SystemClock.elapsedRealtimeNanos()
 
         cameraCaptureSession?.setRepeatingRequest(request.build(), object : CaptureCallback() {
           override fun onCaptureCompleted(
@@ -295,19 +295,13 @@ class MainActivity : AppCompatActivity() {
           ) {
             frames++
             totalFrames++
-//            if (frames % 30 == 0) {
-//              val currentTime = SystemClock.elapsedRealtimeNanos()
-//              val fps = Math.round(frames * 1e9 / (currentTime - initialTime))
-//              setFps(String.format(getString(R.string.fps), fps))
-//              frames = 0
-//            }
 
             val currentTime = SystemClock.elapsedRealtimeNanos()
-            if ((currentTime - prevTime) > 1 * 1000 * 1000 * 1000) {
-              val fps = Math.round(frames * 1e9 / (currentTime - prevTime))
+            if ((currentTime - lastCalculatedTime) > 1 * 1000 * 1000 * 1000) {
+              val fps = Math.round(frames * 1e9 / (currentTime - lastCalculatedTime))
               setFps(String.format(getString(R.string.fps), fps))
               frames = 0
-              prevTime = currentTime
+              lastCalculatedTime = currentTime
             }
 
             if (totalFrames % 100 == 0) {

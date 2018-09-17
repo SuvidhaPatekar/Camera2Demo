@@ -7,7 +7,7 @@ apply plugin: 'kotlin-android-extensions'
 android {
   compileSdkVersion 27
   defaultConfig {
-    applicationId "demo.demo"
+    applicationId "com.suvidhapatekar.camera2demo"
     minSdkVersion 21
     targetSdkVersion 27
     versionCode 1
