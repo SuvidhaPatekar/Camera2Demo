@@ -18,7 +18,6 @@ import android.hardware.camera2.TotalCaptureResult
 import android.hardware.camera2.params.StreamConfigurationMap
 import android.media.ImageReader
 import android.os.Bundle
-import android.os.Environment
 import android.os.Handler
 import android.os.HandlerThread
 import android.os.SystemClock
@@ -35,8 +34,6 @@ import kotlinx.android.synthetic.main.content_main.btnFlash
 import kotlinx.android.synthetic.main.content_main.btnTakePhoto
 import kotlinx.android.synthetic.main.content_main.tvFps
 import kotlinx.android.synthetic.main.content_main.txvCamera
-import java.io.File
-import java.nio.ByteBuffer
 import java.util.Arrays
 
 class MainActivity : AppCompatActivity() {
@@ -131,8 +128,8 @@ class MainActivity : AppCompatActivity() {
 
   override fun onStart() {
     super.onStart()
-    getPermission()
     startBackgroundThread()
+    getPermission()
   }
 
   override fun onStop() {
@@ -225,7 +222,7 @@ class MainActivity : AppCompatActivity() {
           ImageReader.newInstance(frontSize.width, frontSize.height, ImageFormat.JPEG, 50)
       previewImageReader =
           ImageReader.newInstance(100, 100, ImageFormat.JPEG, 50)
-      txvCamera.surfaceTexture.setDefaultBufferSize(frontSize.width, frontSize.height)
+//      txvCamera.surfaceTexture.setDefaultBufferSize(frontSize.width, frontSize.height)
 
       cameraManager.openCamera(frontCameraId, cameraStateCallback, null)
     } else {
@@ -233,7 +230,7 @@ class MainActivity : AppCompatActivity() {
           ImageReader.newInstance(backSize.width, backSize.height, ImageFormat.JPEG, 50)
       previewImageReader =
           ImageReader.newInstance(100, 100, ImageFormat.JPEG, 50)
-      txvCamera.surfaceTexture.setDefaultBufferSize(frontSize.width, frontSize.height)
+//      txvCamera.surfaceTexture.setDefaultBufferSize(frontSize.width, frontSize.height)
       cameraManager.openCamera(backCameraId, cameraStateCallback, null)
     }
 
@@ -244,10 +241,16 @@ class MainActivity : AppCompatActivity() {
     jpegImageReader.setOnImageAvailableListener(
         {
           val byteBuffer = it.acquireLatestImage().planes[0].buffer
-          createNewImageFile().outputStream()
+          val file = createNewImageFile()
+          file.outputStream()
               .use {
                 it.write(getByteArrayFromBuffer(byteBuffer))
-                showToast(R.string.save_image, null)
+                showToast(
+                    message = null,
+                    messageString = String.format(
+                        getString(R.string.save_image), file.absolutePath + file.name
+                    )
+                )
               }
         },
         handler
@@ -256,25 +259,6 @@ class MainActivity : AppCompatActivity() {
     previewSurface = Surface(txvCamera.surfaceTexture)
     jpegCaptureSurface = jpegImageReader.surface
     previewCaptureSurface = previewImageReader.surface
-  }
-
-  private fun createNewImageFile(): File {
-    val root = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)
-        .toString()
-    val mkDir = File("$root/DEMO")
-
-    if (!mkDir.exists()) {
-      mkDir.mkdirs()
-    }
-
-    val imageName = "Image-" + System.currentTimeMillis() + ".jpg"
-    return File(mkDir, imageName)
-  }
-
-  private fun getByteArrayFromBuffer(byteBuffer: ByteBuffer): ByteArray {
-    val bytes = ByteArray(byteBuffer.remaining())
-    byteBuffer.get(bytes)
-    return bytes
   }
 
   fun captureSurface() {
@@ -290,7 +274,6 @@ class MainActivity : AppCompatActivity() {
         startSession()
       }
     }, handler)
-
   }
 
   fun startSession() {
@@ -302,6 +285,7 @@ class MainActivity : AppCompatActivity() {
         var frames = 0
         var totalFrames = 0
         val initialTime: Long = SystemClock.elapsedRealtimeNanos()
+        var prevTime = SystemClock.elapsedRealtimeNanos()
 
         cameraCaptureSession?.setRepeatingRequest(request.build(), object : CaptureCallback() {
           override fun onCaptureCompleted(
@@ -311,11 +295,19 @@ class MainActivity : AppCompatActivity() {
           ) {
             frames++
             totalFrames++
-            if (frames % 30 == 0) {
-              val currentTime = SystemClock.elapsedRealtimeNanos()
-              val fps = Math.round(frames * 1e9 / (currentTime - initialTime))
+//            if (frames % 30 == 0) {
+//              val currentTime = SystemClock.elapsedRealtimeNanos()
+//              val fps = Math.round(frames * 1e9 / (currentTime - initialTime))
+//              setFps(String.format(getString(R.string.fps), fps))
+//              frames = 0
+//            }
+
+            val currentTime = SystemClock.elapsedRealtimeNanos()
+            if ((currentTime - prevTime) > 1 * 1000 * 1000 * 1000) {
+              val fps = Math.round(frames * 1e9 / (currentTime - prevTime))
               setFps(String.format(getString(R.string.fps), fps))
               frames = 0
+              prevTime = currentTime
             }
 
             if (totalFrames % 100 == 0) {
@@ -342,7 +334,6 @@ class MainActivity : AppCompatActivity() {
     } catch (e: Exception) {
 
     }
-
   }
 
   private fun checkFlashAvailable() {
