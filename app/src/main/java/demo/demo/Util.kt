@@ -7,12 +7,10 @@ import java.nio.ByteBuffer
 fun createNewImageFile(): File {
   val root = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)
       .toString()
-  val mkDir = File("$root/DEMO")
-
+  val mkDir = File("$root/Camera2Demo")
   if (!mkDir.exists()) {
     mkDir.mkdirs()
   }
-
   val imageName = "Image-" + System.currentTimeMillis() + ".jpg"
   return File(mkDir, imageName)
 }

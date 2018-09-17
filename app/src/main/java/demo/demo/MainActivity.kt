@@ -226,13 +226,10 @@ class MainActivity : AppCompatActivity() {
     if (isFront) {
       jpegImageReader =
           ImageReader.newInstance(frontSize.width, frontSize.height, ImageFormat.JPEG, 50)
-//      txvCamera.surfaceTexture.setDefaultBufferSize(frontSize.width, frontSize.height)
-
       cameraManager.openCamera(frontCameraId, cameraStateCallback, null)
     } else {
       jpegImageReader =
           ImageReader.newInstance(backSize.width, backSize.height, ImageFormat.JPEG, 50)
-//      txvCamera.surfaceTexture.setDefaultBufferSize(frontSize.width, frontSize.height)
       cameraManager.openCamera(backCameraId, cameraStateCallback, null)
     }
 
